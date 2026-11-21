@@ -1,6 +1,6 @@
 // Truck Map service worker: keeps the app working with no signal.
 // Bump VERSION whenever index.html changes so installed phones pick up the update.
-const VERSION = 'truckmap-v1.0.0';
+const VERSION = 'truckmap-v1.1.0';
 const SHELL_CACHE = VERSION + '-shell';
 const TILE_CACHE = 'truckmap-tiles-v1';
 const MAX_TILES = 2500; // map pieces kept for offline viewing

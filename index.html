@@ -254,11 +254,14 @@ h3{margin:18px 0 8px;font-size:17px}
 <script src="vendor/maplibre-gl.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.0';
+const APP_VERSION = '1.1';
 const STYLE_LIGHT = 'https://tiles.openfreemap.org/styles/liberty';
 const STYLE_DARK = 'https://tiles.openfreemap.org/styles/dark';
 const VALHALLA = 'https://valhalla1.openstreetmap.de/route';
 const PHOTON = 'https://photon.komoot.io';
+const OSRM = 'https://routing.openstreetmap.de/routed-car'; // only used to pick split points on long trips
+const ONE_REQ_KM = 1400; // free route server refuses trips over 1,500 km straight-line per request
+const CHUNK_KM = 1250;   // size of each piece when a long trip is split
 const KEY = 'truckmap.v1';
 const US_VIEW = { center: [-97.37, 39.6], zoom: 3.4 };
 const MAX_STOPS = 10;
@@ -363,6 +366,32 @@ function decode6(str) {
     out.push([lon / 1e6, lat / 1e6]);
   }
   return out;
+}
+function encode6(coords) {
+  let out = '', plat = 0, plon = 0;
+  const enc = (v) => {
+    v = v < 0 ? ~(v << 1) : (v << 1);
+    let s = '';
+    while (v >= 0x20) { s += String.fromCharCode((0x20 | (v & 0x1f)) + 63); v >>= 5; }
+    return s + String.fromCharCode(v + 63);
+  };
+  for (const [lon, lat] of coords) {
+    const a = Math.round(lat * 1e6), b = Math.round(lon * 1e6);
+    out += enc(a - plat) + enc(b - plon);
+    plat = a; plon = b;
+  }
+  return out;
+}
+const RAD = Math.PI / 180;
+function km(a, b) {
+  const dLat = (b.lat - a.lat) * RAD, dLon = (b.lon - a.lon) * RAD;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * RAD) * Math.cos(b.lat * RAD) * Math.sin(dLon / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+}
+function bearing(a, b) {
+  const y = Math.sin((b.lon - a.lon) * RAD) * Math.cos(b.lat * RAD);
+  const x = Math.cos(a.lat * RAD) * Math.sin(b.lat * RAD) - Math.sin(a.lat * RAD) * Math.cos(b.lat * RAD) * Math.cos((b.lon - a.lon) * RAD);
+  return (Math.atan2(y, x) / RAD + 360) % 360;
 }
 const decoded = new WeakMap();
 function legCoords(leg) { let c = decoded.get(leg); if (!c) { c = decode6(leg.shape || ''); decoded.set(leg, c); } return c; }
@@ -701,18 +730,99 @@ async function valhallaRoute(locs) {
   if (!r.ok || !j || !j.trip) throw { code: j && j.error_code != null ? j.error_code : r.status, http: r.status, message: (j && j.error) || r.statusText };
   return j.trip;
 }
-async function routeByLegs(locs) {
-  const sum = { length: 0, time: 0, has_toll: false, has_ferry: false };
-  const legs = [], warnings = [];
-  for (let i = 0; i < locs.length - 1; i++) {
-    setGo(true, `Finding leg ${i + 1} of ${locs.length - 1}…`);
-    const t = await valhallaRoute([locs[i], locs[i + 1]]);
-    legs.push(...t.legs);
+// The free truck router only takes ~930 straight-line miles per request.
+// Short trips go in one request; long ones are routed in pieces and joined.
+async function routeTrip(locs) {
+  const legKm = locs.slice(1).map((b, i) => km(locs[i], b));
+  if (legKm.reduce((a, b) => a + b, 0) <= ONE_REQ_KM) return valhallaRoute(locs);
+  const legs = [], warnings = [], sum = { length: 0, time: 0, has_toll: false, has_ferry: false };
+  const add = (t) => {
     sum.length += t.summary.length; sum.time += t.summary.time;
     sum.has_toll = sum.has_toll || !!t.summary.has_toll; sum.has_ferry = sum.has_ferry || !!t.summary.has_ferry;
     if (t.warnings) warnings.push(...t.warnings);
+  };
+  let i = 0;
+  while (i < locs.length - 1) {
+    if (legKm[i] > ONE_REQ_KM) {
+      setGo(true, `Planning the long run to ${letter(i + 1)}…`);
+      const pts = [locs[i], ...(await splitPoints(locs[i], locs[i + 1])), locs[i + 1]];
+      const parts = [];
+      for (let k = 0; k < pts.length - 1; k++) {
+        setGo(true, `Finding truck route… part ${k + 1} of ${pts.length - 1}`);
+        const t = await valhallaRoute([pts[k], pts[k + 1]]);
+        add(t); parts.push(t.legs[0]);
+      }
+      legs.push(joinLegs(parts));
+      i++;
+    } else {
+      // Group neighboring short legs into one request.
+      let j = i + 1, acc = legKm[i];
+      while (j < locs.length - 1 && acc + legKm[j] <= ONE_REQ_KM) { acc += legKm[j]; j++; }
+      setGo(true, 'Finding truck route…');
+      const t = await valhallaRoute(locs.slice(i, j + 1));
+      add(t); legs.push(...t.legs);
+      i = j;
+    }
   }
   return { legs, summary: sum, warnings };
+}
+// Pick split points along the car route, on Interstates where possible,
+// with the direction of travel so the truck route doesn't turn around there.
+async function splitPoints(a, b) {
+  let j;
+  try {
+    const r = await fetch(`${OSRM}/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false&steps=true&geometries=polyline6`);
+    j = await r.json();
+  } catch (e) { throw { code: 'net' }; }
+  if (!j || j.code !== 'Ok' || !j.routes || !j.routes[0]) throw { code: 154 };
+  const pts = [];
+  j.routes[0].legs[0].steps.forEach((st) => {
+    const ref = `${st.ref || ''};${st.name || ''}`;
+    const cls = /(^|;)\s*I[- ]?\d+/.test(ref) ? 2 : /(^|;)\s*US[- ]?\d+/.test(ref) ? 1 : 0;
+    decode6(st.geometry || '').forEach(([lon, lat]) => pts.push({ lat, lon, cls }));
+  });
+  const out = [];
+  let last = a, lastIdx = 0;
+  for (let k = 1; k < pts.length - 1; k++) {
+    if (km(last, pts[k]) < CHUNK_KM) continue;
+    let pick = -1;
+    for (const want of [2, 1, 0]) {
+      for (let m = k; m > lastIdx; m--) {
+        if (km(last, pts[m]) < CHUNK_KM * 0.5) break;
+        if (pts[m].cls >= want) { pick = m; break; }
+      }
+      if (pick >= 0) break;
+    }
+    if (pick < 0) pick = k;
+    const p = pts[pick];
+    let q = pts[pick + 1];
+    for (let n = pick + 1; n < pts.length; n++) { q = pts[n]; if (km(p, q) > 0.15) break; }
+    out.push({ lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6), type: 'break', heading: Math.round(bearing(p, q)), heading_tolerance: 45 });
+    last = p; lastIdx = pick; k = pick;
+    if (out.length > 15) break;
+  }
+  return out;
+}
+// Join the pieces of one long leg back into a single leg with one turn list.
+function joinLegs(parts) {
+  const coords = [], man = [];
+  let len = 0, time = 0;
+  parts.forEach((leg, k) => {
+    const off = coords.length;
+    decode6(leg.shape || '').forEach((c) => coords.push(c));
+    len += (leg.summary && leg.summary.length) || 0;
+    time += (leg.summary && leg.summary.time) || 0;
+    (leg.maneuvers || []).forEach((m) => {
+      if ([4, 5, 6].includes(m.type) && k < parts.length - 1) return; // "arrived" at a split point
+      if ([1, 2, 3].includes(m.type) && k > 0) {                       // "depart" from a split point
+        const prev = man[man.length - 1];
+        if (prev) { prev.length = (prev.length || 0) + (m.length || 0); prev.time = (prev.time || 0) + (m.time || 0); }
+        return;
+      }
+      man.push({ ...m, begin_shape_index: (m.begin_shape_index || 0) + off });
+    });
+  });
+  return { summary: { length: len, time }, shape: encode6(coords), maneuvers: man };
 }
 function routeError(e) {
   if (e.code === 'net' || !navigator.onLine) return 'No signal. Saved trips still work – open one from the Saved tab.';
@@ -747,9 +857,7 @@ async function getRoute() {
     clearMsg();
     setGo(true, 'Finding truck route…');
     const locs = S.stops.map((s) => ({ lat: +s.lat.toFixed(6), lon: +s.lon.toFixed(6), type: 'break' }));
-    let trip;
-    try { trip = await valhallaRoute(locs); }
-    catch (e) { if (e.code === 154 && locs.length > 2) trip = await routeByLegs(locs); else throw e; }
+    const trip = await routeTrip(locs);
     const rec = packTrip(trip);
     S.trips = [rec, ...S.trips.filter((t) => t.key !== rec.key)].slice(0, 12);
     S.routeId = rec.id; S.routeStale = false;

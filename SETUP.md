@@ -51,7 +51,10 @@ The app opens, and saved trips, turn lists and any map areas you've already look
 |---|---|---|
 | Map | OpenFreeMap (tiles.openfreemap.org) | Free, no key |
 | Truck routing | Valhalla run by FOSSGIS (valhalla1.openstreetmap.de) | Free, at most 1 request per second (the app spaces requests for you), no uptime promise |
+| Long-trip split points | OSRM car router run by FOSSGIS (routing.openstreetmap.de) | Same rules as above. Used only on long trips |
 | Address search | Photon by komoot (photon.komoot.io) | Free for reasonable use, no uptime promise |
+
+The free truck router takes at most about 930 miles (1,500 km) in a straight line per request. For longer trips, like Columbus to either coast, the app gets the car route once and picks split points on Interstates along it. It then routes your truck one piece at a time and joins the pieces into one trip with one turn list. A coast-to-coast trip takes about 5–10 seconds to plan.
 
 These are fine for you and a few drivers. If a whole fleet starts using it every day, run your own Valhalla server or switch to a paid routing service. To do that, change only the `VALHALLA` and `PHOTON` lines near the top of the script in `index.html`.
 
@@ -71,4 +74,4 @@ Saved places and trips stay on each phone. Use **Saved → Download backup** bef
 
 ## Credits
 
-Map data © OpenStreetMap contributors (ODbL). Map tiles by OpenFreeMap / OpenMapTiles. Routing by Valhalla (FOSSGIS). Search by Photon (komoot). Map display by MapLibre GL JS (BSD license, see `vendor/MAPLIBRE-LICENSE.txt`).
+Map data © OpenStreetMap contributors (ODbL). Map tiles by OpenFreeMap / OpenMapTiles. Routing by Valhalla and OSRM (FOSSGIS). Search by Photon (komoot). Map display by MapLibre GL JS (BSD license, see `vendor/MAPLIBRE-LICENSE.txt`).
