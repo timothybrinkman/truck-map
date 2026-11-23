@@ -34,12 +34,33 @@ GitHub Pages serves the app over HTTPS, which "My location", the location dot an
 
 - **First open:** pick your truck (Semi, Dump truck, Lowboy, or Custom). Change any number to match your rig. Height matters most.
 - **Plan a trip:** type a town, address or business, or paste coordinates like `41.43, -97.36`. You can also tap the map and choose **Start here**, **Add stop** or **Go here**. The route comes up as soon as every stop is filled in.
-- **Turns:** gives the turn-by-turn list. Tap any step to see it on the map.
+- **Turn list (or the Turns tab):** every step of the route. Tap any step to see it on the map.
 - **Copy directions:** copies the route as text, so you can paste it into a text message for a driver.
 - **☆ next to a stop:** saves that place (the yard, a job site, a customer). Saved places show up first when you tap a stop box.
 - **Saved tab:** has your last 12 trips. They open with no signal.
 - **☾ / ☀ button:** switches between day and night colors.
 - **Long trips:** shows "About X driving days at 11 hrs/day".
+
+## Drive mode (live turn-by-turn)
+
+1. Plan a route, then tap **▶ Start driving** on the route card. Allow location when the phone asks.
+2. Put the phone on a mount and plug it in. Navigation uses a lot of battery.
+3. While you drive:
+   - The green banner shows the next turn and counts down the distance.
+   - The app speaks the turns: an early warning (for example "In 1 mile, take the Interstate 80 West ramp…") and a second prompt right at the turn.
+   - Miss a turn and it reroutes on its own from where you are, still using your truck's height, weight and length.
+   - **Overview** shows the rest of the trip. **Re-center** goes back to following you.
+   - **🔊** turns the voice on or off. **End** finishes the drive.
+   - The bottom bar shows your arrival time and the miles and time left. That's driving time only, with no breaks counted.
+
+**Preview the drive** (on the route card) plays a simulated drive at 4× speed so you can see and hear how it works without moving. It's handy for showing someone the app.
+
+**Limits, because it's a web app:**
+- The app must stay open and on screen. If you lock the phone or switch apps, guidance pauses until you come back.
+- The app asks the phone to keep the screen on. On iPhone, this works in an installed home-screen app only on iOS 18.4 or newer. If the screen still dims, set **Settings → Display & Brightness → Auto-Lock → Never** while driving.
+- If you don't hear the voice, turn the volume up and check the ring/silent switch.
+- Rerouting needs a signal. With no signal it keeps showing the planned route and tries again later.
+- There's no CarPlay, no Android Auto and no lane guidance.
 
 ## With no signal
 
@@ -62,7 +83,7 @@ These are fine for you and a few drivers. If a whole fleet starts using it every
 
 - Truck restrictions (low bridges, weight limits, no-truck roads) come from OpenStreetMap, and some are missing, especially in small towns and rural areas. **Always follow posted signs and state rules.**
 - Oversize or overweight loads must follow the route on the permit.
-- This is a route planner with a live location dot. It does not give voice turn-by-turn guidance.
+- Drive mode gives voice turn-by-turn guidance only while the app is open on screen (see Drive mode above).
 
 ## Updating the app later
 

@@ -151,6 +151,29 @@ h3{margin:18px 0 8px;font-size:17px}
 .pop-btns [data-a=stop]{background:#0b5cff}
 .pop-btns [data-a=end]{background:#c62828}
 
+/* Drive mode */
+.drivebtn{background:#0a7a33!important}
+body.driving #panel,body.driving .maplibregl-ctrl-top-right,body.driving .maplibregl-ctrl-top-left,body.driving .maplibregl-ctrl-bottom-right{display:none}
+.drive{position:fixed;inset:0;z-index:8;pointer-events:none}
+.drive>*{pointer-events:auto}
+.dbanner{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top) + 8px);background:#0d5c34;color:#fff;border-radius:18px;padding:12px 16px 14px;box-shadow:0 6px 22px rgba(0,0,0,.45)}
+.dturn{display:flex;align-items:center;gap:14px}
+.darrow{font-size:52px;line-height:1;font-weight:900;width:60px;text-align:center}
+.ddist{font-size:34px;font-weight:900;letter-spacing:-.5px}
+.dtext{font-size:21px;font-weight:800;line-height:1.25;margin-top:6px}
+.dthen{margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.25);font-size:16px;font-weight:700;opacity:.95}
+.dstatus{position:absolute;left:0;right:0;margin:0 auto;width:max-content;max-width:calc(100vw - 24px);top:calc(env(safe-area-inset-top) + 190px);background:#111827;color:#fff;border-radius:14px;padding:10px 16px;font-size:16px;font-weight:700;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.drecenter{position:absolute;right:12px;bottom:calc(env(safe-area-inset-bottom) + 110px);min-height:52px;padding:0 18px;border-radius:26px;border:0;background:#0b5cff;color:#fff;font-size:17px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.dbar{position:absolute;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 8px);background:var(--bg);color:var(--fg);border-radius:18px;padding:10px;display:flex;gap:8px;align-items:center;box-shadow:0 -2px 18px rgba(0,0,0,.35)}
+.deta{flex:1;min-width:0;padding-left:6px}
+.deta b{display:block;font-size:22px;font-weight:900}
+.deta small{display:block;color:var(--muted);font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dbtn{min-width:56px;min-height:56px;border-radius:14px;border:2px solid var(--line);background:var(--card);font-size:16px;font-weight:800;padding:0 12px}
+.dbtn.end{background:#c62828;border-color:#c62828;color:#fff}
+.dcredit{position:absolute;right:12px;bottom:calc(env(safe-area-inset-bottom) + 92px);font-size:11px;color:#333;background:rgba(255,255,255,.75);padding:2px 6px;border-radius:6px}
+.me{width:44px;height:44px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+@media (min-width:820px){.dbanner{right:auto;width:460px}.dbar{right:auto;width:460px}.dstatus{top:calc(env(safe-area-inset-top) + 200px)}}
+
 /* Toast, banner, dialog */
 .toast{position:fixed;left:0;right:0;margin:0 auto;width:max-content;top:calc(env(safe-area-inset-top) + 12px);z-index:30;background:#111827;color:#fff;border-radius:12px;padding:8px 8px 8px 16px;display:flex;gap:12px;align-items:center;font-size:16px;box-shadow:0 4px 16px rgba(0,0,0,.4);max-width:calc(100vw - 24px)}
 .toast button{min-height:44px;border:0;border-radius:10px;background:#2b3a55;color:#9cc2ff;font-weight:800;padding:0 14px}
@@ -242,6 +265,22 @@ h3{margin:18px 0 8px;font-size:17px}
 </section>
 
 <div class="net" id="net" hidden>No signal – saved trips and map areas you've already viewed still work</div>
+<div class="drive" id="drive" hidden>
+  <div class="dbanner" id="dBanner" aria-live="polite">
+    <div class="dturn"><span class="darrow" id="dArrow">↑</span><span class="ddist" id="dDist">–</span></div>
+    <div class="dtext" id="dText">Starting…</div>
+    <div class="dthen" id="dThen" hidden></div>
+  </div>
+  <div class="dstatus" id="dStatus" hidden></div>
+  <button class="drecenter" id="dRecenter" type="button" hidden>Re-center</button>
+  <div class="dcredit">© OpenStreetMap</div>
+  <div class="dbar">
+    <div class="deta"><b id="dEta">–</b><small id="dRemain">–</small></div>
+    <button class="dbtn" id="dMute" type="button" aria-label="Voice on or off">🔊</button>
+    <button class="dbtn" id="dOver" type="button">Overview</button>
+    <button class="dbtn end" id="dEnd" type="button">End</button>
+  </div>
+</div>
 <div class="toast" id="toast" hidden><span id="toastText"></span><button id="toastUndo" type="button">Undo</button></div>
 <div class="modal" id="modal" hidden>
   <div class="mbox">
@@ -254,7 +293,7 @@ h3{margin:18px 0 8px;font-size:17px}
 <script src="vendor/maplibre-gl.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.1';
+const APP_VERSION = '1.2';
 const STYLE_LIGHT = 'https://tiles.openfreemap.org/styles/liberty';
 const STYLE_DARK = 'https://tiles.openfreemap.org/styles/dark';
 const VALHALLA = 'https://valhalla1.openstreetmap.de/route';
@@ -291,7 +330,7 @@ function defaults() {
     v: 1, seenWelcome: false, theme: null, tab: 'route',
     stops: [null, null],
     truck: { preset: 'semi', ...pick(PRESETS.semi, DIM_KEYS), maxMph: 65, hazmat: false, preferTruck: true, avoidUnpaved: true, avoidTolls: false, avoidFerry: true },
-    places: [], trips: [], routeId: null, routeStale: false, view: null
+    places: [], trips: [], routeId: null, routeStale: false, view: null, voiceOn: true
   };
 }
 function pick(o, keys) { const r = {}; keys.forEach((k) => { r[k] = o[k]; }); return r; }
@@ -430,11 +469,13 @@ function initMap() {
   map.addControl(new ThemeControl(), 'top-right');
   map.on('style.load', addRouteLayers);
   map.on('moveend', () => {
+    if (D) return; // don't save the camera while driving
     const c = map.getCenter();
     S.view = { center: [+c.lng.toFixed(5), +c.lat.toFixed(5)], zoom: +map.getZoom().toFixed(2) };
     save();
   });
-  map.on('click', onMapClick);
+  map.on('click', (e) => { if (!D) onMapClick(e); });
+  map.on('dragstart', () => { if (D && D.follow) { D.follow = false; $('#dRecenter').hidden = false; } });
   map.on('error', (e) => {
     // If the night map can't load, fall back to the day map.
     const url = String(e && e.error && (e.error.url || e.error.message) || '');
@@ -871,25 +912,36 @@ async function getRoute() {
     setGo(false);
   }
 }
-function packTrip(trip) {
+function packTrip(trip, stops) {
+  stops = stops || S.stops;
   return {
-    id: Date.now().toString(36), when: Date.now(), key: tripKey(S.stops),
-    stops: S.stops.map((s) => ({ label: s.label, lat: s.lat, lon: s.lon })),
+    id: Date.now().toString(36), when: Date.now(), key: tripKey(stops),
+    stops: stops.map((s) => ({ label: s.label, lat: s.lat, lon: s.lon })),
     truck: truckText(),
     summary: { length: trip.summary.length, time: trip.summary.time, toll: !!trip.summary.has_toll, ferry: !!trip.summary.has_ferry },
     warnings: (trip.warnings || []).map((w) => (typeof w === 'string' ? w : w.text || w.description || '')).filter(Boolean).slice(0, 4),
     legs: trip.legs.map((l) => ({
       length: (l.summary && l.summary.length) || 0, time: (l.summary && l.summary.time) || 0, shape: l.shape,
-      steps: (l.maneuvers || []).map((m) => ({ t: m.type, i: m.instruction, d: m.length, b: m.begin_shape_index, toll: !!m.toll }))
+      steps: (l.maneuvers || []).map((m) => ({
+        t: m.type, i: m.instruction, d: m.length, tm: m.time, b: m.begin_shape_index, toll: !!m.toll,
+        va: m.verbal_transition_alert_instruction || '', vp: m.verbal_pre_transition_instruction || '', vq: m.verbal_post_transition_instruction || ''
+      }))
     }))
   };
 }
-function showRoute(rec, fit) {
+function tripCoords(rec) {
   const coords = [];
   if (rec) rec.legs.forEach((l) => { const c = legCoords(l); for (let k = 0; k < c.length; k++) coords.push(c[k]); });
+  return coords;
+}
+function setRouteLine(coords) {
   routeGeo = { type: 'FeatureCollection', features: coords.length ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } }] : [] };
   const src = map && map.getSource && map.getSource('route');
   if (src) src.setData(routeGeo);
+}
+function showRoute(rec, fit) {
+  const coords = tripCoords(rec);
+  setRouteLine(coords);
   renderSummary(); renderTurns();
   if (fit && coords.length) {
     if (!isWide()) setSheet('mid');
@@ -915,12 +967,16 @@ function renderSummary() {
       ${days ? `<div class="sum-days">About ${days} driving days at 11 hrs/day</div>` : ''}
       ${chips ? `<div class="chips">${chips}</div>` : ''}
       ${rec.warnings.map((w) => `<div class="msg warn">${esc(w)}</div>`).join('')}
-      <div class="rowbtns"><button class="btn primary" type="button" id="toTurns">Turn-by-turn</button><button class="btn ghost" type="button" id="copyBtn">Copy directions</button></div>
+      <button class="btn primary big drivebtn" type="button" id="driveBtn">▶ Start driving</button>
+      <div class="rowbtns"><button class="btn ghost" type="button" id="toTurns">Turn list</button><button class="btn ghost" type="button" id="copyBtn">Copy directions</button></div>
+      <div class="rowbtns"><button class="btn ghost" type="button" id="previewBtn">Preview the drive</button></div>
       <div class="sum-truck">Routed for: ${esc(rec.truck)}</div>
       ${S.routeStale ? '<div class="stale">Truck settings changed since this route.<button type="button" id="reroute">Update</button></div>' : ''}
     </div>`;
   $('#toTurns').onclick = () => showTab('turns');
   $('#copyBtn').onclick = copyDirections;
+  $('#driveBtn').onclick = () => startDrive(false);
+  $('#previewBtn').onclick = () => startDrive(true);
   const rr = $('#reroute');
   if (rr) rr.onclick = getRoute;
   peek.innerHTML = `${fmtMi(s.length)} · ${fmtTime(s.time)}<small>to ${esc(shortLabel(last.label))}</small>`;
@@ -1210,6 +1266,342 @@ function toggleTheme() {
 function updateNet() { $('#net').hidden = navigator.onLine; }
 window.addEventListener('online', updateNet);
 window.addEventListener('offline', updateNet);
+
+/* ---------------- Drive mode (live turn-by-turn) ---------------- */
+let D = null;      // drive state while driving, null otherwise
+let meMarker = null;
+const ARRIVE = [4, 5, 6], DEPART = [1, 2, 3];
+const mDist = (a, b) => km({ lon: a[0], lat: a[1] }, { lon: b[0], lat: b[1] }) * 1000; // meters between [lon,lat] points
+
+// Build a flat, measured version of a trip for following along.
+function buildDrive(rec) {
+  const coords = [], steps = [], legStart = [];
+  rec.legs.forEach((leg, li) => {
+    const off = coords.length;
+    legStart.push(off);
+    legCoords(leg).forEach((c) => coords.push(c));
+    leg.steps.forEach((st) => steps.push({ ...st, leg: li, g: off + (st.b || 0) }));
+  });
+  const cum = new Float64Array(coords.length);
+  for (let k = 1; k < coords.length; k++) cum[k] = cum[k - 1] + mDist(coords[k - 1], coords[k]);
+  steps.forEach((st) => { st.at = cum[Math.min(st.g, coords.length - 1)] || 0; });
+  steps.sort((a, b) => a.at - b.at || a.g - b.g);
+  steps.forEach((st, k) => { const nx = steps[k + 1]; st.end = nx ? nx.at : cum[coords.length - 1]; });
+  return { coords, cum, steps, legStart, total: cum[coords.length - 1] || 0 };
+}
+
+function loadDrive(rec, isReroute) {
+  const b = buildDrive(rec);
+  Object.assign(D, { rec, ...b, idx: 0, s: 0, k: 0, off: 0, spoken: new Set(), arrived: false });
+  if (isReroute) { D.spoken.add('0:far'); D.spoken.add('0:near'); }
+  setRouteLine(b.coords);
+}
+
+function startDrive(preview) {
+  const rec = currentTrip();
+  if (!rec) return;
+  if (S.routeStale) { say('Truck settings changed. Tap Update to re-route for your truck before driving.', 'warn'); return; }
+  if (!preview && !navigator.geolocation) { say('This phone did not share a location, so Drive mode can’t follow you.', 'warn'); return; }
+  if (popup) popup.remove();
+  D = { active: true, preview, follow: true, lastReroute: 0, rerouting: false, course: 0, watch: null, sim: null, lock: null };
+  loadDrive(rec, false);
+  document.body.classList.add('driving');
+  $('#drive').hidden = false;
+  $('#dRecenter').hidden = true;
+  updateMuteBtn();
+  map.setMaxPitch(60);
+  // First words must be spoken inside the tap so phones allow speech.
+  const first = D.steps.find((s) => DEPART.includes(s.t));
+  speak(`Starting route to ${shortLabel(rec.stops[rec.stops.length - 1].label)}. ${first ? first.vp || first.i : ''}`, true);
+  D.spoken.add('0:far'); D.spoken.add('0:near');
+  lockScreen().then((ok) => { if (!ok && !preview) setStatus('Tip: set your phone’s Auto-Lock to Never while driving so the screen stays on.', 7000); });
+  const c0 = D.coords[0];
+  if (c0) placeMe(c0, bearingAt(0), true);
+  if (preview) { setStatus('Preview – simulated drive at 4× speed', 5000); startSim(); }
+  else {
+    setStatus('Finding GPS…');
+    D.watch = navigator.geolocation.watchPosition(onFix, onGeoErr, { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 });
+  }
+  renderBanner();
+}
+
+function endDrive() {
+  if (!D) return;
+  if (D.watch != null) navigator.geolocation.clearWatch(D.watch);
+  clearInterval(D.sim);
+  try { if (D.lock) D.lock.release(); } catch (e) {}
+  try { speechSynthesis.cancel(); } catch (e) {}
+  D = null;
+  if (meMarker) { meMarker.remove(); meMarker = null; }
+  document.body.classList.remove('driving');
+  $('#drive').hidden = true;
+  map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
+  map.setPitch(0); map.setBearing(0); map.setMaxPitch(0);
+  showRoute(currentTrip(), true);
+}
+
+async function lockScreen() {
+  try { if ('wakeLock' in navigator) { D.lock = await navigator.wakeLock.request('screen'); return true; } } catch (e) {}
+  return false;
+}
+document.addEventListener('visibilitychange', () => { if (D && document.visibilityState === 'visible') lockScreen(); });
+
+function onGeoErr(err) {
+  if (!D) return;
+  if (err && err.code === 1) setStatus('Location is turned off for this app. Turn it on in your phone settings to drive.');
+  else setStatus('Weak GPS – keep going, it will catch up.', 5000);
+}
+
+// Snap a position onto the route. Returns nearest segment, how far along it, and distance off the line.
+function snap(p) {
+  const C = D.coords, n = C.length;
+  const cosLat = Math.cos(p.lat * RAD);
+  const xy = (c) => [(c[0] - p.lon) * cosLat * 111320, (c[1] - p.lat) * 110540];
+  const search = (from, to) => {
+    let best = { d: Infinity, i: from, t: 0 };
+    for (let i = from; i < to; i++) {
+      const [ax, ay] = xy(C[i]), [bx, by] = xy(C[i + 1]);
+      const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+      const t = L ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L)) : 0;
+      const x = ax + t * dx, y = ay + t * dy, d = Math.sqrt(x * x + y * y);
+      if (d < best.d) best = { d, i, t };
+    }
+    return best;
+  };
+  if (n < 2) return { d: Infinity, i: 0, t: 0 };
+  let b = search(Math.max(0, D.idx - 10), Math.min(n - 1, D.idx + 800));
+  if (b.d > 120) { const g = search(0, n - 1); if (g.d + 30 < b.d) b = g; }
+  return b;
+}
+function bearingAt(i) {
+  const C = D.coords;
+  const a = C[Math.min(i, C.length - 1)];
+  for (let j = i + 1; j < C.length; j++) if (mDist(a, C[j]) > 8) return bearing({ lon: a[0], lat: a[1] }, { lon: C[j][0], lat: C[j][1] });
+  return D.course || 0;
+}
+
+function onFix(pos) {
+  if (!D) return;
+  const c = pos.coords, p = { lat: c.latitude, lon: c.longitude };
+  const acc = c.accuracy || 30, speed = Number.isFinite(c.speed) && c.speed >= 0 ? c.speed : null;
+  if (!D.preview && $('#dStatus').textContent === 'Finding GPS…') setStatus('');
+  const m = snap(p);
+  const onRoute = m.d <= Math.max(45, Math.min(acc, 80) * 1.2);
+  if (onRoute) {
+    D.idx = m.i;
+    const s = D.cum[m.i] + m.t * (D.cum[m.i + 1] - D.cum[m.i]);
+    if (s > D.s - 40) D.s = s; // ignore small backward GPS jumps
+    D.off = 0;
+    D.course = bearingAt(m.i);
+    const a = D.coords[m.i], b = D.coords[m.i + 1] || a;
+    placeMe([a[0] + (b[0] - a[0]) * m.t, a[1] + (b[1] - a[1]) * m.t], D.course);
+  } else {
+    if (Number.isFinite(c.heading) && speed && speed > 2) D.course = c.heading;
+    placeMe([p.lon, p.lat], D.course);
+    if (acc < 80 && (speed == null || speed > 1.5)) D.off++;
+    if (D.off >= 3 && !D.arrived) reroute(p);
+  }
+  D.speed = speed != null ? speed : (D.speed || 0);
+  progress();
+}
+
+function placeMe(lonlat, course, jump) {
+  if (!meMarker) {
+    const el = document.createElement('div');
+    el.className = 'me';
+    el.innerHTML = '<svg viewBox="0 0 44 44" width="44" height="44"><circle cx="22" cy="22" r="20" fill="#fff"/><circle cx="22" cy="22" r="17" fill="#1d6bff"/><path d="M22 9 L31 31 L22 26 L13 31 Z" fill="#fff"/></svg>';
+    meMarker = new maplibregl.Marker({ element: el, rotationAlignment: 'map', pitchAlignment: 'map' }).setLngLat(lonlat).addTo(map);
+  }
+  meMarker.setLngLat(lonlat).setRotation(course || 0);
+  if (D && D.follow) {
+    const v = D.speed || 0;
+    const zoom = v > 24 ? 14.6 : v > 13 ? 15.4 : 16.3;
+    const H = window.innerHeight;
+    map.easeTo({ center: lonlat, bearing: course || 0, pitch: 50, zoom, duration: jump ? 0 : 900, easing: (t) => t,
+      padding: { top: Math.round(H * 0.42), bottom: 110, left: 0, right: 0 }, essential: true });
+  }
+}
+
+// Work out the next turn, update the banner, and speak at the right moments.
+function progress() {
+  const st = D.steps;
+  while (D.k < st.length && st[D.k].at <= D.s + 3) D.k++;
+  const next = st[D.k], prev = st[D.k - 1];
+  if (prev && !D.spoken.has(`${D.k - 1}:post`)) {
+    D.spoken.add(`${D.k - 1}:post`);
+    if (prev.vq && (prev.end - prev.at) > 1600 && !ARRIVE.includes(prev.t)) speak(prev.vq);
+  }
+  if (!next || D.s >= D.total - 25) { arrive(); return; }
+  const dist = next.at - D.s;
+  const v = Math.max(D.speed || 0, 9);
+  const far = Math.min(3200, Math.max(400, v * 80)), near = Math.min(450, Math.max(70, v * 14));
+  const gap = next.at - (prev ? prev.at : 0);
+  if (!D.spoken.has(`${D.k}:far`) && dist <= far && dist > near * 1.6 && gap > near * 2) {
+    D.spoken.add(`${D.k}:far`);
+    speak(`In ${spokenDist(dist)}, ${next.va || next.vp || next.i}`);
+  }
+  if (!D.spoken.has(`${D.k}:near`) && dist <= near) {
+    D.spoken.add(`${D.k}:near`); D.spoken.add(`${D.k}:far`);
+    speak(next.vp || next.i, true);
+  }
+  renderBanner();
+}
+
+function arrive() {
+  if (D.arrived) return;
+  D.arrived = true;
+  const last = D.steps[D.steps.length - 1];
+  if (!D.spoken.has('arrive')) { D.spoken.add('arrive'); speak((last && (last.vp || last.i)) || 'You have arrived.', true); }
+  clearInterval(D.sim);
+  renderBanner();
+}
+
+function renderBanner() {
+  if (!D) return;
+  const rec = D.rec, dest = rec.stops[rec.stops.length - 1];
+  if (D.arrived) {
+    $('#dArrow').textContent = '⚑';
+    $('#dDist').textContent = 'Arrived';
+    $('#dText').textContent = shortLabel(dest.label);
+    $('#dThen').hidden = true;
+    $('#dEta').textContent = 'You’re here';
+    $('#dRemain').textContent = '';
+    return;
+  }
+  const next = D.steps[D.k] || D.steps[D.steps.length - 1];
+  const dist = Math.max(0, next.at - D.s);
+  $('#dArrow').textContent = TURN_ICON[next.t] || '↑';
+  $('#dDist').textContent = fmtMi(dist / 1609.344);
+  $('#dText').textContent = next.i;
+  const then = D.steps[D.k + 1];
+  if (then && then.at - next.at < 500) {
+    $('#dThen').hidden = false;
+    $('#dThen').textContent = `Then ${TURN_ICON[then.t] || '↑'} ${then.i}`;
+  } else $('#dThen').hidden = true;
+  // Time left: remaining steps' times, plus the unfinished part of the current one.
+  let secs = 0;
+  const cur = D.steps[D.k - 1];
+  if (D.steps.every((x) => Number.isFinite(x.tm))) {
+    for (let k = D.k; k < D.steps.length; k++) secs += D.steps[k].tm;
+    if (cur && cur.end > cur.at) secs += cur.tm * Math.max(0, Math.min(1, (cur.end - D.s) / (cur.end - cur.at)));
+  } else {
+    const totalTime = rec.legs.reduce((a, l) => a + (l.time || 0), 0);
+    secs = totalTime * (1 - D.s / (D.total || 1));
+  }
+  const eta = new Date(Date.now() + secs * 1000);
+  const sameDay = eta.toDateString() === new Date().toDateString();
+  $('#dEta').textContent = (sameDay ? '' : eta.toLocaleDateString(undefined, { weekday: 'short' }) + ' ') + eta.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  $('#dRemain').textContent = `${fmtMi((D.total - D.s) / 1609.344)} · ${fmtTime(secs)} left${secs > 4 * 3600 ? ' (driving only)' : ''}`;
+}
+
+async function reroute(p) {
+  if (!D || D.rerouting || D.preview || Date.now() - D.lastReroute < 15000) return;
+  D.rerouting = true; D.lastReroute = Date.now();
+  setStatus('Rerouting for your truck…');
+  speak('Rerouting.', true);
+  let leg = 0;
+  D.legStart.forEach((g, li) => { if (g <= D.idx) leg = li; });
+  const rest = D.rec.stops.slice(leg + 1);
+  const here = { lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6), type: 'break' };
+  if (Number.isFinite(D.course)) Object.assign(here, { heading: Math.round(D.course), heading_tolerance: 60 });
+  try {
+    const trip = await routeTrip([here, ...rest.map((s) => ({ lat: +s.lat.toFixed(6), lon: +s.lon.toFixed(6), type: 'break' }))]);
+    if (!D) return;
+    loadDrive(packTrip(trip, [{ label: 'Current location', lat: p.lat, lon: p.lon }, ...rest]), true);
+    setStatus('New route found', 2500);
+    progress();
+  } catch (e) {
+    if (D) setStatus(e && (e.code === 'net' || !navigator.onLine) ? 'No signal – stay on the blue line if you can. Trying again soon.' : 'Couldn’t reroute yet – trying again soon.', 6000);
+  } finally {
+    if (D) { D.rerouting = false; D.off = 0; }
+    setGo(false);
+  }
+}
+
+// Preview: drives the route on its own so you can see and hear how it works.
+function startSim() {
+  let s = 0;
+  D.sim = setInterval(() => {
+    if (!D) return;
+    const st = D.steps[Math.max(0, D.k - 1)];
+    const v = st && st.tm > 0 && st.d > 0 ? Math.min(31, (st.d * 1609.344) / st.tm) : 22;
+    s += v * 4;
+    const C = D.coords, cum = D.cum;
+    let i = D.idx;
+    while (i < C.length - 2 && cum[i + 1] < s) i++;
+    const seg = cum[i + 1] - cum[i] || 1, t = Math.max(0, Math.min(1, (s - cum[i]) / seg));
+    const a = C[i], b = C[i + 1] || a;
+    onFix({ coords: { latitude: a[1] + (b[1] - a[1]) * t, longitude: a[0] + (b[0] - a[0]) * t, accuracy: 5, speed: v, heading: null } });
+  }, 1000);
+}
+
+function spokenDist(m) {
+  const mi = m / 1609.344;
+  if (mi >= 0.9) { const r = Math.round(mi * 2) / 2; return `${r === Math.floor(r) ? r : r.toFixed(1)} mile${r === 1 ? '' : 's'}`; }
+  if (mi >= 0.65) return 'three quarters of a mile';
+  if (mi >= 0.4) return 'half a mile';
+  if (mi >= 0.18) return 'a quarter mile';
+  return `${Math.max(100, Math.round((m * 3.28084) / 100) * 100)} feet`;
+}
+let voice = null;
+function pickVoice() {
+  if (voice) return voice;
+  try {
+    const vs = speechSynthesis.getVoices().filter((v) => /^en[-_]US/i.test(v.lang));
+    voice = vs.find((v) => v.localService) || vs[0] || null;
+  } catch (e) {}
+  return voice;
+}
+function speak(text, urgent) {
+  if (!S.voiceOn || !text || !('speechSynthesis' in window)) return;
+  const say2 = String(text)
+    .replace(/\bI[- ](\d+)/g, 'Interstate $1')
+    .replace(/\bUS[- ](\d+)/g, 'U.S. $1')
+    .replace(/\bSR[- ](\d+)/g, 'State Route $1')
+    .replace(/\bHwy\b/gi, 'Highway');
+  try {
+    if (urgent) speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(say2);
+    u.lang = 'en-US'; u.rate = 1;
+    const v = pickVoice();
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+let statusTimer;
+function setStatus(text, ms) {
+  const el = $('#dStatus');
+  el.textContent = text || '';
+  el.hidden = !text;
+  clearTimeout(statusTimer);
+  if (text && ms) statusTimer = setTimeout(() => { el.hidden = true; el.textContent = ''; }, ms);
+}
+function updateMuteBtn() { $('#dMute').textContent = S.voiceOn ? '🔊' : '🔇'; }
+$('#dMute').addEventListener('click', () => {
+  S.voiceOn = !S.voiceOn; save(); updateMuteBtn();
+  if (S.voiceOn) speak('Voice on.', true); else try { speechSynthesis.cancel(); } catch (e) {}
+});
+$('#dEnd').addEventListener('click', endDrive);
+$('#dRecenter').addEventListener('click', () => {
+  if (!D) return;
+  D.follow = true; $('#dRecenter').hidden = true; $('#dOver').textContent = 'Overview';
+  const ll = meMarker && meMarker.getLngLat();
+  if (ll) placeMe([ll.lng, ll.lat], D.course, false);
+});
+$('#dOver').addEventListener('click', () => {
+  if (!D) return;
+  if (!D.follow) { $('#dRecenter').click(); return; }
+  D.follow = false; $('#dRecenter').hidden = false; $('#dOver').textContent = 'Follow';
+  const rest = D.coords.slice(Math.max(0, D.idx));
+  map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
+  map.easeTo({ pitch: 0, bearing: 0, duration: 300 });
+  if (rest.length > 1) {
+    let x0 = 180, y0 = 90, x1 = -180, y1 = -90;
+    rest.forEach(([x, y]) => { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; });
+    try { map.fitBounds([[x0, y0], [x1, y1]], { padding: { top: 200, bottom: 110, left: 40, right: 40 }, maxZoom: 15, duration: 700 }); } catch (e) {}
+  }
+});
+window.__truckDrive = { fix: (lat, lon, speed, accuracy) => onFix({ coords: { latitude: lat, longitude: lon, speed: speed == null ? 20 : speed, accuracy: accuracy || 5, heading: null } }), state: () => D };
 
 /* ---------------- Start up ---------------- */
 function renderAll() { renderStops(); renderTruck(); renderSaved(); renderMarkers(); showRoute(currentTrip(), false); setGo(false); }
